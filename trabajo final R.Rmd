@@ -1,0 +1,399 @@
+---
+title: "Proyecto Final R"
+author: "Roberto Borja"
+date: "11/28/2019"
+output:
+     prettydoc::html_pretty:
+         theme: cayman   
+         toc: True
+     header-includes: \usepackage{graphicx}
+     geometry: left=1in,right=1in,top=1in,bottom=1in
+---
+
+
+```{r echo=FALSE, include=FALSE}
+
+library(xml2)
+library(rvest)
+library(reshape2)
+library (dplyr)
+library(plyr)
+library(tidyverse)
+library(ggplot2)
+library(knitr)
+library(xts)
+library(plotly)
+library(viridis)
+library(prettydoc)
+library(rmdformats)
+library(formattable)
+
+```
+
+# Proyecto Final: Business Performance Analysis
+
+## Expresiones Regulares
+
+En el siguiente apartado hablaremos sobre dos páginas las cuales nos pueden servir como referencia al momento de buscar información sobre expresiones regulares de R.
+
+* La [primera página](https://rstudio-pubs-static.s3.amazonaws.com/74603_76cd14d5983f47408fdf0b323550b846.html) es un tutorial que adapta el material utilizado en _University_of_British_Columbia_ en el curso de exploración y análisis de datos en R.
+
+* La [Segunda página](http://www.diegocalvo.es/expresiones-regulares-en-r/) es realizada por el Data Scientist Diego Calvo.
+
+
+Luego de analizar ambas paginas puedo concluir que el primer documento es una mejor opción al momento de buscar información sobre expresiones regulares. Sin embargo, al encontrarse en Ingles, requiere que la persona tenga dominio sobre el mismo, mientras que el segundo documento se encuentra en español. Para nombrar algunas de las razones por las cuales creo que el primer documento es mejor, es debido a que está muy bien organizado en cuanto a teoría , información , tipos de expresiones con sus respectivos ejemplos y dispone de tres ejercicios donde engloba lo presentado en el tutorial con sus resultados al final del documento. De igual manera dispone de links para que nos descarguemos bases de datos para poder realizar ejercicios y otros links relacionados al tema por si necesitamos mayor información.
+
+Enfocándonos al segundo documento vale rescatar que dispone de la información de manera muy concisa y en un formato que permite al usuario encontrar de forma rápida la información sobre la expresión regular que esté buscando, sin embargo no se puede encontrar teoría, ejercicios propuestos, base de datos ni recomendaciones a otras paginas relacionadas a la expresiones regulares.
+
+Para terminar con este análisis quisiera recalcar que a pesar de que en la actualidad existe basta información en español, podemos encontrar una mayor cantidad de páginas en ingles debido a que la naturaleza de R es en este idioma. 
+
+
+## Markdown
+
+R Markdown es una herramienta dentro de RStudio que permite desde escribir documentos, realizar presentaciones hasta escribir páginas web. En la siguiente sección hablaremos sobre dos páginas web que nos dan una guía del uso de esta herramienta. La primera es:
+
+ * [Rusersgroup](http://rusersgroup.com/blog/rmarkdown/)
+ * [Rpubs](https://rpubs.com/brandonkopp/RMarkdown)
+ 
+Estas dos páginas las utilicé para realizar este trabajo, por lo cual considero que cumplen el propósito de ser una guía al momento de que queremos usar esta herramienta,me parecen páginas muy intuitivas y que contienen un muy buen contenido.
+
+Sin embargo, si revisamos detenidamente las dos páginas podemos ver que Rusergroups engloba más herramientas que se encuentran disponibles en rmarkdown. De igual manera considero que la página anteriormente hablada es mejor que rpubs, ya que la información se encuentra mejor organizada, tiene mayor cantidad de ejemplos y contiene videos explicativos que para mi punto de vista fue el mayor distintivo de la página con la página de rpubs.
+
+## Análisis de Población Urbana VS Población Rural
+
+Para realizar este trabajo realizamos webscrapping de [Country by World Population (2019)](https://www.worldometers.info/world-population/population-by-country/). Donde tomaremos como referencia los países más poblados hasta que estos sumen aproximadamente el 50 % de población Mundial.
+
+Este trabajo tiene como finalidad mostrar el desplazamiento en los últimos años de la población rural a la Urbana. 
+
+
+```{r echo=FALSE, warning=FALSE}
+
+
+
+
+poblacion <- "https://www.worldometers.info/world-population/population-by-country/"
+
+
+poblacion <- read_html(poblacion)
+poblacion <- html_nodes(poblacion, "table")
+
+poblacion <- html_table(poblacion[[1]])
+
+
+#limpieza tabla 
+
+poblacion$`Yearly Change` <- NULL
+poblacion$`Net Change` <- NULL
+poblacion$`Migrants (net)`<-NULL
+poblacion$`Fert. Rate`<- NULL 
+poblacion$`Med. Age`<-NULL
+poblacion$`#` <- NULL
+
+
+# Cambio de nombres de las columnas
+
+poblacion1 <- poblacion
+colnames(poblacion1) <- c("Pais", "Poblacion_2019" , "Densidad" , "Area_km2", " % Poblacion Urbana", "Porcentaje mundial")
+
+# eliminar el % de la tabla
+
+poblacion1$`Porcentaje mundial` <- gsub("%" , " " , poblacion1$`Porcentaje mundial`)
+poblacion1$`Porcentaje mundial` <- as.numeric(poblacion1$`Porcentaje mundial`)
+poblacion1$` % Poblacion Urbana` <- gsub("%" , " " , poblacion1$` % Poblacion Urbana`)
+poblacion1$` % Poblacion Urbana` <- as.numeric(poblacion1$` % Poblacion Urbana`)
+poblacion1$` % Poblacion Urbana` <- poblacion1$` % Poblacion Urbana`/100
+
+# eliminar las "," y hacerle numercico
+
+poblacion1$Poblacion_2019 <- gsub("," , "" , poblacion1$Poblacion_2019)
+poblacion1$Poblacion_2019 <- as.numeric(poblacion1$Poblacion_2019)
+poblacion1$Densidad <- gsub("," , "" , poblacion1$Densidad)
+poblacion1$Densidad <- as.numeric(poblacion1$Densidad)
+poblacion1$Area_km2 <- gsub("," , "" , poblacion1$Area_km2  )
+poblacion1$Area_km2 <- as.numeric(poblacion1$Area_km2)
+
+# creamos una columna de porcentajes acumulados
+porcentaje_acumulado <- as.data.frame(cumsum(poblacion1$`Porcentaje mundial`))   
+
+# creamos columnas de Poblacion urbana y poblacion rural 
+Poblacion_Urbana <- as.data.frame(poblacion1$Poblacion_2019 * poblacion1$` % Poblacion Urbana`)
+Poblacion_Rural <- as.data.frame(poblacion1$Poblacion_2019 - Poblacion_Urbana)  
+
+#unimos las cuatro tablas 
+poblacion1 <- cbind(poblacion1 , porcentaje_acumulado)
+poblacion1 <- cbind(poblacion1 , Poblacion_Urbana)
+poblacion1 <- cbind(poblacion1 , Poblacion_Rural)
+
+#cambiamos de nuevo los nombres de las tablas 
+
+colnames(poblacion1) <- c("Pais", "Poblacion 2019" , "Densidad" , "Area km2", "% poblacion Urbana", "Porcentaje mundial", "Porcentaje Acumulado", "Poblacion Urbana","Poblacion Rural")
+
+# verificar cuales son los paises mas poblados que representan el 50% de la poblacion 
+
+poblacion2 <- poblacion1
+
+poblacion2$Densidad <-NULL
+poblacion2$`Area km2` <-NULL
+
+colnames(poblacion2) <- c("Pais", "Poblacion 2019" , "% poblacion Urbana", "Porcentaje mundial", "Porcentaje Acumulado", "Poblacion Urbana","Poblacion Rural")
+
+poblacion2 <- poblacion2[poblacion2$`Porcentaje Acumulado` <= "50",]
+poblacion3 <- format_table(poblacion2,align = c("c","c","c","c","c","c","c"))
+
+
+poblacion3
+```
+
+
+
+En la gráfica dinámica mostrada a continuación, podemos ver la población de los países mostrados en la tabla anterior, dividida entre población Urbana y población Rural del año 2019.
+
+
+```{r echo=FALSE, warning=FALSE}
+
+
+grafico_melt <- (melt(poblacion2, id.vars = c("Pais", "Poblacion 2019","% poblacion Urbana","Porcentaje mundial", "Porcentaje Acumulado"),variable.name = "Poblacion_Segmentada"))
+
+
+grafico1<- ggplot(grafico_melt,aes(x = Pais, y = value, fill= Poblacion_Segmentada))+
+  geom_bar(position="stack", stat="identity")+
+  scale_fill_manual(values = c("darkblue" , "limegreen"))+ 
+  ylab("Población 2019") + 
+  ggtitle(" 50 % poblacion Mundial")+
+  theme( plot.title = element_text(color="black", size=30, face='bold', hjust=0.5),
+        legend.title = element_text(size=14, face='bold'),
+        legend.text = element_text(size=8))+
+  theme(panel.background = element_rect(fill= "lightgrey"),
+      panel.grid.minor = element_line(linetype = "solid"))+
+  theme_minimal()+theme(plot.title = element_text(hjust = 0.5))
+
+ggplotly(grafico1)
+       
+```
+ 
+ Debido a que existe una diferencia muy marcada de la población entre estos países, vamos a realizar los siguientes análisis en base a los 3 países más poblados que representan 40.57% de la población mundial: China, India y USA.
+ 
+ Para poder analizar el cambio de Población Urbana y Población Rural en los últimos 65 años, usamos las siguientes tablas : [china](https://www.worldometers.info/world-population/china-population/) , [india](https://www.worldometers.info/world-population/india-population/) , [USA](https://www.worldometers.info/world-population/us-population/). 
+ 
+ 
+ En la siguiente gráfica podemos ver el crecimiento poblacional de los tres países nombrados anteriormente, donde claramente se ve que la población de China e India ha tenido un crecimineto considerablemente mayor al de USA en los últimos 65 años.
+ 
+```{r echo=FALSE}
+china <- "https://www.worldometers.info/world-population/china-population/"
+
+
+china <- read_html(china)
+china <- html_nodes(china, "table")
+
+china <- html_table(china[[2]])
+
+# limpiamos la tabla 
+
+
+china$`Yearly Change` <- NULL
+china$`Net Change` <- NULL
+china$`Migrants (net)`<-NULL
+china$`Fertility Rate`<- NULL 
+china$`Median Age`<-NULL
+china$`#` <- NULL
+china$`Yearly %  Change` <-NULL
+china$`Yearly Change`<- NULL
+china$`Density (P/Km²)`<- NULL
+china$`Country's Share of World Pop`<- NULL
+china$`ChinaGlobal Rank`<-NULL
+china$`World Population`<-NULL
+china$`Urban Pop %`<-NULL
+
+
+colnames(china) <- c("Año", "Poblacion", "Poblacion Urbana")
+
+# elimino los "." por ","
+
+china$Poblacion <- gsub("," , "" , china$Poblacion)
+
+china$Poblacion <- as.numeric(china$Poblacion)
+
+
+china$`Poblacion Urbana` <- gsub("," , "" , china$`Poblacion Urbana`)
+
+china$`Poblacion Urbana` <- as.numeric(china$`Poblacion Urbana`)
+
+
+# creo columna de poblacion Rural
+
+
+china_pob.rural <- as.data.frame(china$Poblacion - china$`Poblacion Urbana`)
+
+
+#convinar las dos tablas de china
+
+china<- cbind(china , china_pob.rural)
+
+china <- china %>% mutate(Pais="China")
+
+colnames(china) <- c("Año", "Poblacion","Poblacion Urbana", "Poblacion Rural", "Pais")
+
+########################################################################
+
+#INDIA
+
+
+India <- "https://www.worldometers.info/world-population/india-population/"
+
+
+India <- read_html(India)
+India <- html_nodes(India, "table")
+
+India <- html_table(India[[2]])
+
+# limpiamos la tabla 
+
+
+India$`Yearly Change` <- NULL
+India$`Net Change` <- NULL
+India$`Migrants (net)`<-NULL
+India$`Fertility Rate`<- NULL 
+India$`Median Age`<-NULL
+India$`#` <- NULL
+India$`Yearly %  Change` <-NULL
+India$`Yearly Change`<- NULL
+India$`Density (P/Km²)`<- NULL
+India$`Country's Share of World Pop`<- NULL
+India$`IndiaGlobal Rank`<-NULL
+India$`World Population`<-NULL
+India$`Urban Pop %`<-NULL
+
+
+colnames(India) <- c("Año", "Poblacion" , "Poblacion Urbana")
+
+# elimino los "." por ","
+
+India$Poblacion <- gsub("," , "" , India$Poblacion)
+
+India$Poblacion <- as.numeric(India$Poblacion)
+
+
+India$`Poblacion Urbana` <- gsub("," , "" , India$`Poblacion Urbana`)
+
+India$`Poblacion Urbana` <- as.numeric(India$`Poblacion Urbana`)
+
+# creo columna de población Rural
+
+
+India_pob.rural <- as.data.frame(India$Poblacion - India$`Poblacion Urbana`)
+
+
+#convinar las dos tablas de India
+
+India<- cbind(India , India_pob.rural)
+
+India <- India %>% mutate(Pais="India")
+
+colnames(India) <- c("Año", "Poblacion","Poblacion Urbana", "Poblacion Rural", "Pais")
+
+
+#Usa
+
+
+USA <- "https://www.worldometers.info/world-population/us-population/"
+
+
+USA <- read_html(USA)
+USA <- html_nodes(USA, "table")
+
+USA <- html_table(USA[[2]])
+
+# limpiamos la tabla 
+
+
+USA$`Yearly Change` <- NULL
+USA$`Net Change` <- NULL
+USA$`Migrants (net)`<-NULL
+USA$`Fertility Rate`<- NULL 
+USA$`Median Age`<-NULL
+USA$`#` <- NULL
+USA$`Yearly %  Change` <-NULL
+USA$`Yearly Change`<- NULL
+USA$`Density (P/Km²)`<- NULL
+USA$`Country's Share of World Pop`<- NULL
+USA$`U.S.Global Rank`<-NULL
+USA$`World Population`<-NULL
+USA$`Urban Pop %`<-NULL
+
+
+colnames(USA) <- c("Año", "Poblacion", "Poblacion Urbana")
+
+# cambio los "." por ","
+
+USA$Poblacion <- gsub("," , "" , USA$Poblacion)
+
+USA$Poblacion <- as.numeric(USA$Poblacion)
+
+
+USA$`Poblacion Urbana` <- gsub("," , "" , USA$`Poblacion Urbana`)
+
+USA$`Poblacion Urbana` <- as.numeric(USA$`Poblacion Urbana`)
+
+# creo columna de poblacion Rural
+
+USA_pob.rural <- as.data.frame(USA$Poblacion - USA$`Poblacion Urbana`)
+
+
+#unimos las dos tablas de USA
+
+USA<- cbind(USA, USA_pob.rural)
+
+USA <- USA %>% mutate(Pais="USA")
+
+colnames(USA) <- c("Año", "Poblacion", "Poblacion Urbana", "Poblacion Rural", "Pais")
+
+#creamos una tabla con los tres paises y cambiamos de formato ancho a formato largo
+
+
+Tabla_grafico <- rbind(china[,c(1,2,5)] , India[,c(1,2,5)] , USA[,c(1,2,5)])
+
+
+grafico2 <- ggplot(Tabla_grafico , aes( x = Año ))+
+  geom_line(aes(y= Poblacion , color = " Poblacion"))+
+  labs(title = "Población" , color = "Referencia" , x= "Año", y= "Población")+ 
+  theme(plot.title = element_text(hjust = 0.5))+
+  geom_point(color="black", size=0.5, aes(y= Poblacion))+
+  facet_grid(~ Pais)
+
+
+ggplotly(grafico2)
+
+
+
+
+```
+La gráfica de población Urbana Vs Rural nos muestra como la población rural en China ha decrecido drásticamente desde 1990, iguala el numero de estas dos poblaciones en el 2010 y la población Urbana se encuentra en la actualidad en su máximo histórico. Por otro lado, podemos ver que la población Rural en India empieza a mostrar una estabilidad y la población urbana indica un continuo crecimiento. Finalmente podemos ver que la población rural en USA se ha mantenido estable a través de los últimos 65 años, mientras que la población urbana muestra un continuo crecimiento. 
+
+```{r echo=FALSE}
+
+tabla_Urb_Rural_Acumulado <- rbind(china[,c(1,2,3,4,5)] , India[,c(1,2,3,4,5)] , USA[,c(1,2,3,4,5)])
+
+# hacemos el grafico de facetas y se lo hace dinámico
+
+grafico3 <- ggplot(tabla_Urb_Rural_Acumulado , aes( x = Año ))+
+  geom_line(aes(y= `Poblacion Urbana` , color = " Pob. Urb"))+
+  geom_line(aes(y= `Poblacion Rural` , color = " Pob. Rural"))+
+  labs(title = "Poblacion Urbana Vs Rural" , color = "Referencia" , x= "Año", y= "Población")+ 
+  theme(plot.title = element_text(hjust = 0.5))+
+  facet_grid(~ Pais)
+
+
+ggplotly(grafico3) 
+
+```
+
+## Conclusiones
+
+Finalmente, basandonos en los datos mostrados anteriormente podemos afirmar que la tendencia global es la movilización desde zonas rurales a zonas urbanas.Dato que no es de sorprenderse debido a que la tecnologia y la globalización esta reduciendo el trabajo en zonas rurales y se requiere mas en zonas urbanas.
+
+
+
+
+
+
+
