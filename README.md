@@ -11,7 +11,7 @@ install.packages("dplyr")
 install.packages("formattable")
 install.packages("tidyr")
 ```
-Librerias
+Librerías
 ```
 library(xml2)
 library(rvest)
