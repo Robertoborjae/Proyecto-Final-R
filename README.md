@@ -2,7 +2,7 @@
 
 Para el correcto funcionamiento del archivo rmd , se requiere instalar los siguientes paquetes y librerias.
 
-#Paquete
+Paquete
 ```
 install.packages("xml2")
 install.packages("plotly")
@@ -11,7 +11,7 @@ install.packages("dplyr")
 install.packages("formattable")
 install.packages("tidyr")
 ```
-#Librerias
+Librerias
 ```
 library(xml2)
 library(rvest)
